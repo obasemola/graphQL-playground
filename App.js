@@ -113,25 +113,15 @@ const resolvers = {
   },
 
   Author: {
-    bookCount: (root) => {
+    bookCount: async (root) => {
       let count = 0
-      let bookAuthors
-      Book.find({}).then((books) => {
-        // console.log('books', books)
-        books.map( async (book) => {
-          console.log('bookAuthorIds', book.author)
-          bookAuthors = await Author.findById(book.author)
-          console.log(bookAuthors.name)
-          if(root.name === bookAuthors.name){
+      await Book.find({}).then((books) => {
+        books.map((book) => {
+          if(String(root._id) === String(book.author)) {
             count = count + 1
           }
         })
       })
-      // books.map((book) => {
-      //   if(root.name === book.author){
-      //     count = count + 1
-      //   }
-      // })
 
       return count
     }
