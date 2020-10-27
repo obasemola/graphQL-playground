@@ -89,24 +89,25 @@ const resolvers = {
   Query: {
     authorCount: () => Author.collection.countDocuments(),
     bookCount: () => Book.collection.countDocuments(),
-    allBooks: (root, args) => {
+    allBooks: async (root, args) => {
       if(!args.author && !args.genre){
-        return books
+        return Book.find({})
       }
 
-      let returnedBooks = Book.find({}).then((books) => {
-        books.map((book) => {
-          if(args.author === book.author){
+      const author = await Author.findOne({ name: args.author })
+      const authorID = author._id
+      let returnedBookAuthors = await Book.find({}).then((books) => {
+        return books.map((book) => {
+          if(String(book.author) === String(authorID)){
             return book
-          }else if(book.genres.includes(args.genre)){
-            return book
+          } else {
+            return
           }
         })
       })
 
-      returnedBooks = returnedBooks.filter(authorBook => authorBook !== undefined)
-      return returnedBooks.populate('author', { name: 1, born: 1 })
-
+      returnedBookAuthors = returnedBookAuthors.filter(authorBook => authorBook !== undefined)
+      return returnedBookAuthors
     },
     allAuthors: () => Author.find({})
   },
@@ -114,9 +115,14 @@ const resolvers = {
   Author: {
     bookCount: (root) => {
       let count = 0
+      let bookAuthors
       Book.find({}).then((books) => {
-        books.map((book) => {
-          if(root.name === book.author){
+        // console.log('books', books)
+        books.map( async (book) => {
+          console.log('bookAuthorIds', book.author)
+          bookAuthors = await Author.findById(book.author)
+          console.log(bookAuthors.name)
+          if(root.name === bookAuthors.name){
             count = count + 1
           }
         })
@@ -126,6 +132,7 @@ const resolvers = {
       //     count = count + 1
       //   }
       // })
+
       return count
     }
   },
