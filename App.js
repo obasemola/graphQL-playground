@@ -1,10 +1,21 @@
+require('dotenv').config()
 const { ApolloServer, UserInputError, gql } = require('apollo-server')
 const mongoose = require('mongoose')
 const Book = require('./models/Book')
 const Author = require('./models/Author')
 const { v1: uuid } = require('uuid')
 
+const url = process.env.MONGODB_URI
 
+console.log('connecting to', url)
+
+mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false, useCreateIndex: true })
+  .then(() => {
+    console.log('connected to MongoDB')
+  })
+  .catch((error) => {
+    console.log('error connecting to MongoDB:', error.message)
+  })
 
 
 let authors = [
@@ -92,19 +103,19 @@ let books = [
 
 const typeDefs = gql`
 
+  type Author {
+    name: String!
+    bookCount: Int!
+    born: Int
+    id: ID!
+  }
+
   type Book {
     title: String!
     published: Int!
     author: Author!
     id: ID!
     genres: [String!]!
-  }
-
-  type Author {
-    name: String!
-    bookCount: Int!
-    born: Int
-    id: ID!
   }
 
   type Query {
@@ -127,56 +138,82 @@ const typeDefs = gql`
 
 const resolvers = {
   Query: {
-    authorCount: () => authors.length,
-    bookCount: () => books.length,
+    authorCount: () => Author.collection.countDocuments(),
+    bookCount: () => Book.collection.countDocuments(),
     allBooks: (root, args) => {
       if(!args.author && !args.genre){
         return books
       }
-      let returnedBooks = books.map((book) => {
-        if(args.author === book.author){
-          return book
-        }else if(book.genres.includes(args.genre)){
-          return book
-        }
+
+      let returnedBooks = Book.find({}).then((books) => {
+        books.map((book) => {
+          if(args.author === book.author){
+            return book
+          }else if(book.genres.includes(args.genre)){
+            return book
+          }
+        })
       })
+
+      // let returnedBooks = books.map((book) => {
+      //   if(args.author === book.author){
+      //     return book
+      //   }else if(book.genres.includes(args.genre)){
+      //     return book
+      //   }
+      // })
       returnedBooks = returnedBooks.filter(authorBook => authorBook !== undefined)
-      return returnedBooks
+      return returnedBooks.populate('author', { name: 1, born: 1 })
 
     },
-    allAuthors: () => authors
+    allAuthors: () => Author.find({})
   },
 
   Author: {
     bookCount: (root) => {
       let count = 0
-      books.map((book) => {
-        if(root.name === book.author){
-          count = count + 1
-        }
+      Book.find({}).then((books) => {
+        books.map((book) => {
+          if(root.name === book.author){
+            count = count + 1
+          }
+        })
       })
+      // books.map((book) => {
+      //   if(root.name === book.author){
+      //     count = count + 1
+      //   }
+      // })
       return count
     }
   },
 
+  // Book: {
+  //   author: (root) => {
+  //     const authorObject = Author.findOne({ name: root.author })
+  //     return {
+  //       author: root.author.populate({ name:  })
+  //     }
+  //   }
+  // },
+
   Mutation: {
-    addBook: (root, args) => {
-      const book = { ...args, id: uuid() }
-      books = books.concat(book)
-      console.log(books)
-      const author = authors.find(author => author.name === book.author)
+    addBook: async (root, args) => {
+      const authorObject = await Author.findOne({ name: args.author })
+      const book = new Book({
+        ...args,
+        author: authorObject })
+        
+        console.log(authorObject._id)
+      const author = Author.findOne({ name: book.author })
       if(author){
-        console.log(authors)
+        // console.log(authors)
       } else {
-        const newAuthor = {
-          name: book.author,
-          id: uuid()
-        }
-        authors = authors.concat(newAuthor)
-        console.log(authors)
+        const newAuthor = new Author({ name: book.author })
+        newAuthor.save()
 
       }
-      return book
+      return book.save()
     },
 
     editAuthor: (root, args) => {
