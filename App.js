@@ -1,5 +1,5 @@
 require('dotenv').config()
-const { ApolloServer, UserInputError, gql } = require('apollo-server')
+const { ApolloServer, UserInputError, gql, AuthenticationError } = require('apollo-server')
 const mongoose = require('mongoose')
 const jwt = require('jsonwebtoken')
 const Book = require('./models/Book')
@@ -149,8 +149,14 @@ const resolvers = {
   },
 
   Mutation: {
-    addBook: async (root, args) => {
+    addBook: async (root, args, context) => {
       const authorObject = await Author.findOne({ name: args.author })
+      const loggedinUser = context.loggedinUser
+
+      if(!loggedinUser) {
+        throw new AuthenticationError("not authenticated")
+      }
+
       if(!authorObject){
         const newAuthor = new Author({ name: args.author })
         if(args.author.length < 4){
@@ -158,7 +164,15 @@ const resolvers = {
         } else if(args.title.length < 2){
           throw new UserInputError("Title must be at least 2 characters")
         }
-        await newAuthor.save()
+
+        try {
+          await newAuthor.save()
+        } catch {
+          throw new UserInputError(error.message, {
+            invalidArgs: args
+          })
+        }
+
 
         const savedAuthorObject = await Author.findOne({ name: args.author })
         const book = new Book({
@@ -220,6 +234,17 @@ const resolvers = {
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  context: async ({ req }) => {
+    const auth = req ? req.headers.authorization : null
+    if(auth && auth.toLowerCase().startsWith('bearer')){
+      const decodedToken = jwt.verify(
+        auth.substring(7), secretKey
+      )
+
+      const loggedinUser = await User.findById(decodedToken.id)
+      return { loggedinUser }
+    }
+  }
 })
 
 server.listen().then(({ url }) => {
