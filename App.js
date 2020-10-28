@@ -67,6 +67,12 @@ const typeDefs = gql`
     genres: [String!]!
   }
 
+  type User {
+    username: String!
+    favouriteGenre: String!
+    id: ID!
+  }
+
   type Query {
     authorCount: Int!
     bookCount: Int!
@@ -132,6 +138,11 @@ const resolvers = {
       const authorObject = await Author.findOne({ name: args.author })
       if(!authorObject){
         const newAuthor = new Author({ name: args.author })
+        if(args.author.length < 4){
+          throw new UserInputError("Name of author must be at least 4 characters")
+        } else if(args.title.length < 2){
+          throw new UserInputError("Title must be at least 2 characters")
+        }
         await newAuthor.save()
 
         const savedAuthorObject = await Author.findOne({ name: args.author })
