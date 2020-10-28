@@ -188,9 +188,15 @@ const resolvers = {
       return await book.save()
     },
 
-    editAuthor: async (root, args) => {
+    editAuthor: async (root, args, context) => {
 
       const author = await Author.findOne({ name: args.name })
+      const loggedinUser = context.loggedinUser
+
+      if(!loggedinUser){
+        throw new AuthenticationError('not authenticated')
+      }
+      
       if(!author){
         return null
       }
