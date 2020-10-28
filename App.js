@@ -1,11 +1,13 @@
 require('dotenv').config()
 const { ApolloServer, UserInputError, gql } = require('apollo-server')
 const mongoose = require('mongoose')
+const jwt = require('jsonwebtoken')
 const Book = require('./models/Book')
 const Author = require('./models/Author')
-const { v1: uuid } = require('uuid')
+const User = require('./models/User')
 
 const url = process.env.MONGODB_URI
+const secretKey = process.env.JWT_SECRET
 
 console.log('connecting to', url)
 
@@ -73,11 +75,16 @@ const typeDefs = gql`
     id: ID!
   }
 
+  type Token {
+    value: String!
+  }
+
   type Query {
     authorCount: Int!
     bookCount: Int!
     allBooks(author: String, genre: String): [Book!]!
     allAuthors: [Author!]!
+    me: User
   }
 
   type Mutation {
@@ -88,6 +95,14 @@ const typeDefs = gql`
       genres: [String!]!
     ): Book
     editAuthor(name: String!, setBornTo: Int!): Author
+    createUser(
+      username: String!
+      favouriteGenre: String!
+    ): User
+    login(
+      username: String!
+      password: String!
+    ): Token
   }
 `
 
@@ -172,7 +187,28 @@ const resolvers = {
 
       return newUpdate
 
-    }
+    },
+
+    createUser: async (root, args) => {
+      const user = new User({ ...args })
+
+      return await user.save()
+        .catch((error) => {
+          throw new UserInputError(error.message, {
+            invalidArgs: args
+          })
+        })
+    },
+
+    // login: async (root, args) => {
+    //   const user = User.findOne({ username: args.username })
+
+    //   if(!user || args.password !== 'secret'){
+    //     throw new UserInputError('wrong credentials')
+    //   }
+
+    //   const user
+    // }
   }
 }
 
