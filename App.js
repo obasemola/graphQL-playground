@@ -130,7 +130,11 @@ const resolvers = {
       returnedBookAuthors = returnedBookAuthors.filter(authorBook => authorBook !== undefined)
       return returnedBookAuthors
     },
-    allAuthors: () => Author.find({})
+    allAuthors: () => Author.find({}),
+
+    me: (root, args, context) => {
+      return context.loggedinUser
+    }
   },
 
   Author: {
@@ -196,7 +200,7 @@ const resolvers = {
       if(!loggedinUser){
         throw new AuthenticationError('not authenticated')
       }
-      
+
       if(!author){
         return null
       }
