@@ -200,15 +200,20 @@ const resolvers = {
         })
     },
 
-    // login: async (root, args) => {
-    //   const user = User.findOne({ username: args.username })
+    login: async (root, args) => {
+      const user = User.findOne({ username: args.username })
 
-    //   if(!user || args.password !== 'secret'){
-    //     throw new UserInputError('wrong credentials')
-    //   }
+      if(!user || args.password !== 'secret'){
+        throw new UserInputError('wrong credentials')
+      }
 
-    //   const user
-    // }
+      const userForToken = {
+        username: user.username,
+        id: user._id
+      }
+
+      return { value: jwt.sign(userForToken, secretKey) }
+    }
   }
 }
 
