@@ -116,20 +116,26 @@ const resolvers = {
         return await Book.find({}).populate('author', { name: 1, born: 1 })
       }
 
-      const author = await Author.findOne({ name: args.author })
-      const authorID = author._id
-      let returnedBookAuthors = await Book.find({}).then((books) => {
-        return books.map((book) => {
-          if(String(book.author) === String(authorID)){
+      let returnedBookAuthors = await Book
+        .find({})
+        .populate('author', { name: 1, born: 1 })
+        .then((books) => {
+        return books
+        .map((book) => {
+          if(book.author.name === args.author){
             return book
-          } else {
+          }
+          else if(book.genres.includes(args.genre)){
+            return book
+          }
+          else {
             return
           }
         })
       })
 
       returnedBookAuthors = returnedBookAuthors.filter(authorBook => authorBook !== undefined)
-      console.log(returnedBookAuthors)
+      return returnedBookAuthors
     },
     recommendations: async (root, args) => {
       let returnedBooks = await Book.find({}).then((books) => {
@@ -153,6 +159,22 @@ const resolvers = {
       return context.loggedinUser
     }
   },
+
+  // Book: {
+  //   author: async (root) => {
+  //     let returnedAuthor = await Author.find({}).then((authors) => {
+  //       return authors.map((author) => {
+  //         if(String(author._id) === String(root.author)){
+  //           return author
+  //         } else {
+  //           return null
+  //         }
+  //       })
+  //     })
+  //     returnedAuthor = returnedAuthor.filter(a => a !== null)
+  //     console.log('notMain', returnedAuthor)
+  //   }
+  // },
 
   Author: {
     bookCount: async (root) => {
