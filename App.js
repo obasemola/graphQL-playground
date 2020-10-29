@@ -134,11 +134,15 @@ const resolvers = {
         })
       })
 
+      //filtering undefined out of the array
       returnedBookAuthors = returnedBookAuthors.filter(authorBook => authorBook !== undefined)
       return returnedBookAuthors
     },
     recommendations: async (root, args) => {
-      let returnedBooks = await Book.find({}).then((books) => {
+      let returnedBooks = await Book
+        .find({})
+        .populate('author', { name: 1, born: 1 })
+        .then((books) => {
         return books.map((book) => {
           if(book.genres.includes(args.genre)){
             return book
@@ -148,6 +152,7 @@ const resolvers = {
         })
       })
 
+      //filtering null out
       returnedBooks = returnedBooks.filter(returnedBook => returnedBook !== null)
 
       return returnedBooks
@@ -160,27 +165,12 @@ const resolvers = {
     }
   },
 
-  // Book: {
-  //   author: async (root) => {
-  //     let returnedAuthor = await Author.find({}).then((authors) => {
-  //       return authors.map((author) => {
-  //         if(String(author._id) === String(root.author)){
-  //           return author
-  //         } else {
-  //           return null
-  //         }
-  //       })
-  //     })
-  //     returnedAuthor = returnedAuthor.filter(a => a !== null)
-  //     console.log('notMain', returnedAuthor)
-  //   }
-  // },
-
   Author: {
     bookCount: async (root) => {
       let count = 0
       await Book.find({}).then((books) => {
         books.map((book) => {
+          //turn the id and objectId to string otherwise, a comparison will always be false
           if(String(root._id) === String(book.author)) {
             count = count + 1
           }
@@ -229,6 +219,8 @@ const resolvers = {
         author: authorObject })
       
       return await book.save()
+      // console.log(loggedinUser)
+
     },
 
     editAuthor: async (root, args, context) => {
@@ -285,6 +277,7 @@ const server = new ApolloServer({
   typeDefs,
   resolvers,
   context: async ({ req }) => {
+    //getting the token saved in request authorization header
     const auth = req ? req.headers.authorization : null
 
     if(auth && auth.toLowerCase().startsWith('bearer')){
