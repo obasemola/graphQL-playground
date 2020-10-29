@@ -85,6 +85,7 @@ const typeDefs = gql`
     allBooks(author: String, genre: String): [Book!]!
     allAuthors: [Author!]!
     me: User
+    recommendations(genre: String): [Book!]!
   }
 
   type Mutation {
@@ -112,7 +113,7 @@ const resolvers = {
     bookCount: () => Book.collection.countDocuments(),
     allBooks: async (root, args) => {
       if(!args.author && !args.genre){
-        return Book.find({})
+        return await Book.find({}).populate('author', { name: 1, born: 1 })
       }
 
       const author = await Author.findOne({ name: args.author })
@@ -128,9 +129,25 @@ const resolvers = {
       })
 
       returnedBookAuthors = returnedBookAuthors.filter(authorBook => authorBook !== undefined)
-      return returnedBookAuthors
+      console.log(returnedBookAuthors)
     },
-    allAuthors: () => Author.find({}),
+    recommendations: async (root, args) => {
+      let returnedBooks = await Book.find({}).then((books) => {
+        return books.map((book) => {
+          if(book.genres.includes(args.genre)){
+            return book
+          } else {
+            return null
+          }
+        })
+      })
+
+      returnedBooks = returnedBooks.filter(returnedBook => returnedBook !== null)
+
+      return returnedBooks
+    },
+
+    allAuthors: (root, args, context) => Author.find({}),
 
     me: (root, args, context) => {
       return context.loggedinUser
@@ -225,9 +242,9 @@ const resolvers = {
     },
 
     login: async (root, args) => {
-      const user = User.findOne({ username: args.username })
+      const user = await User.findOne({ username: args.username })
 
-      if(!user || args.password !== 'secret'){
+      if(!user || args.password !== 'secret009'){
         throw new UserInputError('wrong credentials')
       }
 
@@ -237,6 +254,7 @@ const resolvers = {
       }
 
       return { value: jwt.sign(userForToken, secretKey) }
+
     }
   }
 }
@@ -246,12 +264,15 @@ const server = new ApolloServer({
   resolvers,
   context: async ({ req }) => {
     const auth = req ? req.headers.authorization : null
+
     if(auth && auth.toLowerCase().startsWith('bearer')){
+
       const decodedToken = jwt.verify(
         auth.substring(7), secretKey
       )
 
       const loggedinUser = await User.findById(decodedToken.id)
+
       return { loggedinUser }
     }
   }
