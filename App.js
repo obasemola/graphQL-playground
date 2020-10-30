@@ -200,12 +200,16 @@ const resolvers = {
         author: authorObject })
       
         try {
-          return await book.save()
+          await book.save()
         } catch{
           throw new UserInputError(error.message, {
             invalidArgs: args
           })
         }
+
+        pubsub.publish('BOOK_ADDED', { bookAdded: book })
+
+        return book
       
       // console.log(loggedinUser)
 
