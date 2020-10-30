@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken')
 const Book = require('./models/Book')
 const Author = require('./models/Author')
 const User = require('./models/User')
+const { PubSub } = require('apollo-server')
+const pubsub = new PubSub
 
 const url = process.env.MONGODB_URI
 const secretKey = process.env.JWT_SECRET
@@ -18,38 +20,6 @@ mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true, useFind
   .catch((error) => {
     console.log('error connecting to MongoDB:', error.message)
   })
-
-
-let authors = [
-  {
-    name: 'Robert Martin',
-    id: "afa51ab0-344d-11e9-a414-719c6709cf3e",
-    born: 1952,
-  },
-  {
-    name: 'Martin Fowler',
-    id: "afa5b6f0-344d-11e9-a414-719c6709cf3e",
-    born: 1963
-  },
-  {
-    name: 'Fyodor Dostoevsky',
-    id: "afa5b6f1-344d-11e9-a414-719c6709cf3e",
-    born: 1821
-  },
-  { 
-    name: 'Joshua Kerievsky', // birthyear not known
-    id: "afa5b6f2-344d-11e9-a414-719c6709cf3e",
-  },
-  { 
-    name: 'Sandi Metz', // birthyear not known
-    id: "afa5b6f3-344d-11e9-a414-719c6709cf3e",
-  },
-]
-
-/*
- * Saattaisi olla järkevämpää assosioida kirja ja sen tekijä tallettamalla kirjan yhteyteen tekijän nimen sijaan tekijän id
- * Yksinkertaisuuden vuoksi tallennamme kuitenkin kirjan yhteyteen tekijän nimen
-*/
 
 
 const typeDefs = gql`
@@ -86,6 +56,10 @@ const typeDefs = gql`
     allAuthors: [Author!]!
     me: User
     recommendations(genre: String): [Book!]!
+  }
+
+  type Subscription {
+    bookAdded: Book!
   }
 
   type Mutation {
@@ -211,14 +185,28 @@ const resolvers = {
         const book = new Book({
           ...args,
           author: savedAuthorObject })
-          return await book.save()
+          try {
+            return await book.save()
+          } catch {
+            throw new UserInputError(error.message, {
+              invalidArgs: args
+            })
+          }
+
       }
 
       const book = new Book({
         ...args,
         author: authorObject })
       
-      return await book.save()
+        try {
+          return await book.save()
+        } catch{
+          throw new UserInputError(error.message, {
+            invalidArgs: args
+          })
+        }
+      
       // console.log(loggedinUser)
 
     },
@@ -269,6 +257,11 @@ const resolvers = {
 
       return { value: jwt.sign(userForToken, secretKey) }
 
+    }
+  },
+  Subscription: {
+    bookAdded: {
+      subscribe: () => pubsub.asyncIterator(['BOOK_ADDED'])
     }
   }
 }
