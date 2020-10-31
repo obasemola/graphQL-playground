@@ -132,28 +132,31 @@ const resolvers = {
       return returnedBooks
     },
 
-    allAuthors: (root, args, context) => Author.find({}),
+    allAuthors: (root, args, context) => Author.find({})
+      //getting the count for books using schema.virtual
+      .populate('bookCount'),
 
     me: (root, args, context) => {
       return context.loggedinUser
     }
   },
 
-  Author: {
-    bookCount: async (root) => {
-      let count = 0
-      await Book.find({}).then((books) => {
-        books.map((book) => {
-          //turn the id and objectId to string otherwise, a comparison will always be false
-          if(String(root._id) === String(book.author)) {
-            count = count + 1
-          }
-        })
-      })
+  //defining a separate resolver for the bookCount field
+  // Author: {
+  //   bookCount: async (root) => {
+  //     let count = 0
+  //     await Book.find({}).then((books) => {
+  //       books.map((book) => {
+  //         //turn the id and objectId to string otherwise, a comparison will always be false
+  //         if(String(root._id) === String(book.author)) {
+  //           count = count + 1
+  //         }
+  //       })
+  //     })
 
-      return count
-    }
-  },
+  //     return count
+  //   }
+  // },
 
   Mutation: {
     addBook: async (root, args, context) => {
@@ -201,7 +204,7 @@ const resolvers = {
       
         try {
           await book.save()
-        } catch{
+        } catch(error) {
           throw new UserInputError(error.message, {
             invalidArgs: args
           })
@@ -290,6 +293,7 @@ const server = new ApolloServer({
   }
 })
 
-server.listen().then(({ url }) => {
+server.listen().then(({ url, subscriptionsUrl }) => {
   console.log(`Server ready at ${url}`)
+  console.log(`subscriptions ready at ${subscriptionsUrl}`)
 })
